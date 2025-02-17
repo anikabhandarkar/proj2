@@ -5,7 +5,7 @@ LDFLAGS = -lgtest -lgtest_main -pthread -lexpat
 SRC_DIR = src
 TEST_DIR = testsrc
 OBJ_DIR = obj
-BIN_DIR = bin 
+BIN_DIR = bin
 
 SRC_FILES = $(wildcard $(SRC_DIR)/*.cpp)
 TEST_FILES = $(wildcard $(TEST_DIR)/*.cpp)
@@ -22,6 +22,9 @@ $(GTEST_TARGET): $(OBJ_FILES) $(TEST_OBJ_FILES)
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(OBJ_DIR)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: $(TEST_DIR)/%.cpp | $(OBJ_DIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 $(OBJ_DIR):
