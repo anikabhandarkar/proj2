@@ -1,84 +1,46 @@
 #include "DSVWriter.h"
 #include "DataSink.h"
 
-struct CDSVWriter::SImplementation
-{
+struct CDSVWriter::SImplementation {
     std::shared_ptr<CDataSink> Sink;
     char Delimiter;
     bool QuoteAll;
-
+    
     SImplementation(std::shared_ptr<CDataSink> sink, char delimiter, bool quoteall)
         : Sink(sink), Delimiter(delimiter), QuoteAll(quoteall) {}
+    
+        bool WriteRow(const std::vector<std::string>& row) {
+            for (size_t i = 0; i < row.size(); ++i) {
+                bool needsQuotes = QuoteAll || row[i].find(Delimiter) != std::string::npos || row[i].find('"') != std::string::npos;
+        
+                if (needsQuotes) {
+                    Sink->Put('"');
+                    for (char ch : row[i]) {
+                        if (ch == '"') {
+                            Sink->Put('"'); // Escape quotes by doubling them
+                            Sink->Put('"');
+                        } else {
+                            Sink->Put(ch);
+                        }
+                    }
+                    Sink->Put('"');
+                } else {
+                    for (char ch : row[i]) {
+                        Sink->Put(ch);
+                    }
+                }
+        
+                if (i < row.size() - 1) {
+                    Sink->Put(Delimiter);
+                }
+            }
+            return Sink->Put('\n');
+        }
 };
-// Constructor for DSV writer, sink specifies the data destination, delimiter
-// specifies the delimiting character, and quoteall specifies if all values
-// should be quoted or only those that contain the delimiter, a double quote,
-// or a newline
-CDSVWriter::CDSVWriter(std::shared_ptr<CDataSink> sink, char delimiter, bool quoteall = false)
+
+CDSVWriter::CDSVWriter(std::shared_ptr<CDataSink> sink, char delimiter, bool quoteall)
     : DImplementation(std::make_unique<SImplementation>(sink, delimiter, quoteall)) {}
 
-// Destructor for DSV writer
 CDSVWriter::~CDSVWriter() = default;
 
-// Returns true if the row is successfully written, one string per column
-// should be put in the row vector
-bool CDSVWriter::WriteRow(const std::vector<std::string> &row)
-{
-    if (!DImplementation || !DImplementation->Sink) return false;
-    
-    if (row.empty()) return DImplementation->Sink->Put('\n');
-    
-
-    auto &sink = DImplementation->Sink;
-    char delimiter = DImplementation->Delimiter;
-    bool quoteAll = DImplementation->QuoteAll;
-
-    for (size_t i = 0; i < row.size(); ++i)
-    {
-        bool needsQuote = quoteAll ||
-                          row[i].find(delimiter) != std::string::npos ||
-                          row[i].find('"') != std::string::npos ||
-                          row[i].find('\n') != std::string::npos;
-
-        if (needsQuote)
-        {
-            if (!sink->Put('"'))
-                return false;
-
-            for (char ch : row[i])
-            {
-                if (ch == '"')
-                {
-                    if (!sink->Put('"'))
-                        return false;
-                    if (!sink->Put('"'))
-                        return false;
-                }
-                else
-                {
-                    if (!sink->Put(ch))
-                        return false;
-                }
-            }
-
-            if (!sink->Put('"'))
-                return false;
-        }
-        else
-        {
-            for (char ch : row[i])
-            {
-                if (!sink->Put(ch))
-                    return false;
-            }
-        }
-
-        if (i < row.size() - 1)
-        {
-            if (!sink->Put(delimiter))
-                return false;
-        }
-    }
-
-    return sink->Put('\n');
-}
+bool CDSVWriter::WriteRow(const std::vector<std::string>& row) { return DImplementation->WriteRow(row); }
