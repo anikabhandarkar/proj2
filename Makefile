@@ -1,38 +1,35 @@
 CXX = g++
-CXXFLAGS = -std=c++17 -Wall -Iinclude
-LDFLAGS = -lgtest -lgtest_main -pthread -lexpat
+CXXFLAGS = -std=c++17 -Iinclude -I/usr/include/gtest -I/usr/include/gtest
+LDFLAGS = -L/usr/lib -lgtest -lgtest_main -pthread -lexpat
 
-SRC_DIR = src 
-TEST_DIR = testsrc
+SRC_DIR = src
+TEST_SRC_DIR = testsrc
 OBJ_DIR = obj
 BIN_DIR = bin
 
-SRC_FILES = $(wildcard $(SRC_DIR)/*.cpp)
-TEST_FILES = $(wildcard $(TEST_DIR)/*.cpp)
-OBJ_FILES = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SRC_FILES))
-TEST_OBJ_FILES = $(patsubst $(TEST_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(TEST_FILES))
+SRCS = $(wildcard $(SRC_DIR)/*.cpp)
+TEST_SRCS = $(wildcard $(TEST_SRC_DIR)/*.cpp)
+OBJS = $(SRCS:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/%.o)
+TEST_OBJS = $(TEST_SRCS:$(TEST_SRC_DIR)/%.cpp=$(OBJ_DIR)/%.o)
+TARGET = $(BIN_DIR)/teststrutils
 
-GTEST_TARGET = $(BIN_DIR)/runtests
+all: directories $(TARGET)
 
-all: $(GTEST_TARGET)
+directories:
+	mkdir -p $(OBJ_DIR)
+	mkdir -p $(BIN_DIR)
 
-$(GTEST_TARGET): $(OBJ_FILES) $(TEST_OBJ_FILES)
-	@mkdir -p $(BIN_DIR)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
-
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(OBJ_DIR)
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | directories
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-$(OBJ_DIR)/%.o: $(TEST_DIR)/%.cpp | $(OBJ_DIR)
+$(OBJ_DIR)/%.o: $(TEST_SRC_DIR)/%.cpp | directories
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-$(OBJ_DIR):
-	@mkdir -p $(OBJ_DIR)
+$(TARGET): $(OBJS) $(TEST_OBJS) | directories
+	$(CXX) $(OBJS) $(TEST_OBJS) $(LDFLAGS) -o $@
+
+run: $(TARGET)
+	./$(TARGET)
 
 clean:
-	rm -rf $(OBJ_DIR) $(BIN_DIR)	
-
-test: all
-	./$(GTEST_TARGET)
-
-.PHONY: all clean test
+	rm -rf $(OBJ_DIR) $(BIN_DIR)
