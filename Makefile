@@ -1,27 +1,38 @@
+CXX = g++
+CXXFLAGS = -std=c++17 -Wall -Iinclude
+LDFLAGS = -lgtest -lgtest_main -pthread -lexpat
+
+SRC_DIR = src 
+TEST_DIR = testsrc
+OBJ_DIR = obj
 BIN_DIR = bin
-OBJ_DIR = obj  
 
-all: directories runtests
+SRC_FILES = $(wildcard $(SRC_DIR)/*.cpp)
+TEST_FILES = $(wildcard $(TEST_DIR)/*.cpp)
+OBJ_FILES = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SRC_FILES))
+TEST_OBJ_FILES = $(patsubst $(TEST_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(TEST_FILES))
 
-build: g++ CDSV.cpp StringDataSink.cpp StringDataSource.cpp
-	g++ -std=c++11 -o CDSV.cpp StringDataSink.cpp StringDataSource.cpp
+GTEST_TARGET = $(BIN_DIR)/runtests
 
-runtests: $(TARGET)
-	$(TARGET)
+all: $(GTEST_TARGET)
 
-$(TARGET): $(OBJ_FILES)
-	$(CXX) $(CFLAGS) $(CPPFLAGS) $(OBJ_FILES) $(LDFLAGS) -o $(TARGET)
+$(GTEST_TARGET): $(OBJ_FILES) $(TEST_OBJ_FILES)
+	@mkdir -p $(BIN_DIR)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
-	$(CXX) $(CFLAGS) $(CPPFLAGS) $(DEFINES) $(INCLUDE) -c $< -o $@
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(OBJ_DIR)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-$(OBJ_DIR)/%.o: $(TESTSRC_DIR)/%.cpp
-	$(CXX) $(CFLAGS) $(CPPFLAGS) $(DEFINES) $(INCLUDE) -c $< -o $@
+$(OBJ_DIR)/%.o: $(TEST_DIR)/%.cpp | $(OBJ_DIR)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-directories:
-	mkdir -p $(BIN_DIR)
-	mkdir -p $(OBJ_DIR)
+$(OBJ_DIR):
+	@mkdir -p $(OBJ_DIR)
 
-clean::
-	rm -rf $(BIN_DIR)
-	rm -rf $(OBJ_DIR)
+clean:
+	rm -rf $(OBJ_DIR) $(BIN_DIR)	
+
+test: all
+	./$(GTEST_TARGET)
+
+.PHONY: all clean test
