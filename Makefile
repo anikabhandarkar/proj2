@@ -1,6 +1,6 @@
 CXX = g++
 CXXFLAGS = -std=c++17 -Iinclude
-LDFLAGS = -lgtest -lgtest_main -pthread -lexpat
+LDFLAGS = -lgtest -lgtest_main -pthread
 
 SRC_DIR = src
 TEST_DIR = testsrc
@@ -19,7 +19,7 @@ all: $(GTEST_TARGET)
 
 $(GTEST_TARGET): $(OBJ_FILES) $(TEST_OBJ_FILES)
 	@mkdir -p $(BIN_DIR)
-	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
+	$(CXX) $(CXXFLAGS)
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(OBJ_DIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
