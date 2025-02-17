@@ -12,18 +12,18 @@ struct CDSVReader::SImplementation{
 
 // Constructor for DSV reader, src specifies the data source and delimiter
 // specifies the delimiting character
-CDSVReader::CDSVReader(std::shared_ptr< CDataSource > src, char delimiter)
-    :DImplementation(std::make_unique<SImplementation>(src, delimiter)){ }
+//CDSVReader::CDSVReader(std::shared_ptr< CDataSource > src, char delimiter)
+    //:DImplementation(std::make_unique<SImplementation>(src, delimiter)){ }
 
 
 // Destructor for DSV reader
-CDSVReader::~CDSVReader() = default;
+// CDSVReader::~CDSVReader() = default;
 
 
 // Returns true if all rows have been read from the DSV
-bool CDSVReader::End() const{
-    return DImplementation->Source->End();
-}
+// bool CDSVReader::End() const{
+    // return DImplementation->Source->End();
+//}
 // Returns true if the row is successfully read, one string will be put in
 // the row per column
 bool CDSVReader::ReadRow(std::vector< std::string > &row){
@@ -60,3 +60,15 @@ bool CDSVReader::ReadRow(std::vector< std::string > &row){
     return false;
 }
 
+CDSVReader::CDSVReader(std::shared_ptr< CDataSource > src, char delimiter)
+    :DImplementation(std::make_unique<SImplementation>(src, delimiter)){ }
+
+
+// Destructor for DSV reader
+CDSVReader::~CDSVReader() = default;
+
+
+// Returns true if all rows have been read from the DSV
+bool CDSVReader::End() const{
+    return DImplementation->Source->End();
+}
