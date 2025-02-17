@@ -24,15 +24,10 @@ CDSVWriter::~CDSVWriter() = default;
 // should be put in the row vector
 bool CDSVWriter::WriteRow(const std::vector<std::string> &row)
 {
-    if (!DImplementation || !DImplementation->Sink)
-    {
-        return false;
-    }
-
-    if (row.empty())
-    {
-        return DImplementation->Sink->Put('\n');
-    }
+    if (!DImplementation || !DImplementation->Sink) return false;
+    
+    if (row.empty()) return DImplementation->Sink->Put('\n');
+    
 
     auto &sink = DImplementation->Sink;
     char delimiter = DImplementation->Delimiter;
@@ -40,19 +35,17 @@ bool CDSVWriter::WriteRow(const std::vector<std::string> &row)
 
     for (size_t i = 0; i < row.size(); ++i)
     {
-        const auto &field = row[i];
-
         bool needsQuote = quoteAll ||
-                          field.find(delimiter) != std::string::npos ||
-                          field.find('"') != std::string::npos ||
-                          field.find('\n') != std::string::npos;
+                          row[i].find(delimiter) != std::string::npos ||
+                          row[i].find('"') != std::string::npos ||
+                          row[i].find('\n') != std::string::npos;
 
         if (needsQuote)
         {
             if (!sink->Put('"'))
                 return false;
 
-            for (char ch : field)
+            for (char ch : row[i])
             {
                 if (ch == '"')
                 {
@@ -73,7 +66,7 @@ bool CDSVWriter::WriteRow(const std::vector<std::string> &row)
         }
         else
         {
-            for (char ch : field)
+            for (char ch : row[i])
             {
                 if (!sink->Put(ch))
                     return false;
