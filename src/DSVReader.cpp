@@ -1,92 +1,116 @@
 #include "DSVReader.h"
+#include "StringUtils.h"
 #include <sstream>
 #include <iostream>
 
-struct CDSVReader::SImplementation {
-    std::shared_ptr<CDataSource> DataSource;
+struct CDSVReader::SImplementation
+{
+    std::shared_ptr<CDataSource> Source;
     char Delimiter;
-    
+
     SImplementation(std::shared_ptr<CDataSource> src, char delimiter)
-        : DataSource(std::move(src)), Delimiter(delimiter) {}
-    
-    bool ReadRow(std::vector<std::string> &row) {
-        row.clear();
-        
-        std::string cell;
-        char ch;
-        bool inQuotes = false;
-        bool hasData = false;
-        
-        while (!DataSource->End()) {
-            if (!DataSource->Get(ch)) return false;
-            hasData = true;
-            
-            if (ch == '"') {
-                // Check if the next character is another quote (escaped quote)
-                if (!DataSource->End()) {
-                    char nextChar;
-                    if (DataSource->Peek(nextChar) && nextChar == '"') {
-                        // Consume the peeked character
-                        DataSource->Get(nextChar);
-                        // Escaped quote, add it
-                        cell += '"';
-                    } else if (inQuotes) {
-                        // End of quoted section
-                        inQuotes = false;
-                    } else {
-                        // Starting a quoted section
-                        inQuotes = true;
-                    }
-                } else if (inQuotes) {
-                    // End of quoted section at end of file
-                    inQuotes = false;
-                } else {
-                    // Starting a quoted section at end of file (rare case)
-                    inQuotes = true;
-                }
-            } else if (ch == Delimiter && !inQuotes) {
-                // Outside quotes, delimiter means end of cell
-                row.push_back(cell);
-                cell.clear();
-            } else if ((ch == '\n' || ch == '\r') && !inQuotes) {
-                // Newline outside quotes means end of row
-                if (!cell.empty() || !row.empty()) {
-                    row.push_back(cell);
-                }
-                
-                // Skip any following \r\n combination
-                if (ch == '\r' && !DataSource->End()) {
-                    char nextChar;
-                    if (DataSource->Peek(nextChar) && nextChar == '\n') {
-                        DataSource->Get(nextChar); // Consume the '\n'
-                    }
-                }
-                
-                return true;
-            } else {
-                // Regular character, add to cell
-                cell += ch;
-            }
-        }
-        
-        // Add last cell if there was any data
-        if (!cell.empty() || hasData) {
-            row.push_back(cell);
-        }
-        
-        return hasData;
-    }
+        : Source(std::move(src)), Delimiter(delimiter) {}
 };
 
+// Constructor for DSV reader, src specifies the data source and delimiter
+// specifies the delimiting character
 CDSVReader::CDSVReader(std::shared_ptr<CDataSource> src, char delimiter)
     : DImplementation(std::make_unique<SImplementation>(src, delimiter)) {}
 
+// Destructor for DSV reader
 CDSVReader::~CDSVReader() = default;
 
-bool CDSVReader::End() const {
-    return DImplementation->DataSource->End();
+// Returns true if all rows have been read from the DSV
+bool CDSVReader::End() const
+{
+    return DImplementation->Source->End();
 }
+// Returns true if the row is successfully read, one string will be put in
+// the row per column
+bool CDSVReader::ReadRow(std::vector<std::string> &row)
+{
+    if (!DImplementation || !DImplementation->Source)
+    {
+        return false;
+    }
 
-bool CDSVReader::ReadRow(std::vector<std::string> &row) {
-    return DImplementation->ReadRow(row);
+    row.clear();
+    std::string right;
+    bool quotes = false;
+    bool data = false;
+    char ch;
+
+    while (!DImplementation->Source->End())
+    {
+        if (!DImplementation->Source->Get(ch))
+        {
+            return false;
+        }
+        data = true;
+
+        if (ch == '"')
+        {
+            if (!DImplementation->Source->End())
+            {
+                char next;
+                if (DImplementation->Source->Peek(next)){
+                    if (next == '"'){
+                        if (!DImplementation->Source->Get(next))
+                        {
+                            return false;
+                        }
+                        right += '"';
+                    }else if (quotes){
+                        quotes = false;
+                    }else{
+                        quotes = true;
+                    }
+                }
+            }
+            else if (quotes)
+            {
+                quotes = false;
+            }
+            else
+            {
+                quotes = true;
+            }
+        }
+        else if (ch == DImplementation->Delimiter && !quotes)
+        {
+            row.push_back(right);
+            right.clear();
+        }
+        else if ((ch == '\n' || ch == '\r') && !quotes)
+        {
+            if (!right.empty() || !row.empty())
+            {
+                row.push_back(right);
+            }
+
+            if (ch == '\r' && !DImplementation->Source->End())
+            {
+                char next;
+                if (DImplementation->Source->Peek(next) && next == '\n')
+                {
+                    if (!DImplementation->Source->Get(next))
+                    {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+        else
+        {
+            right += ch;
+        }
+    }
+
+    if (!right.empty() || !row.empty())
+    {
+        row.push_back(right);
+    }
+
+    return data;
 }
