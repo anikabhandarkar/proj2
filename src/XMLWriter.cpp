@@ -2,14 +2,15 @@
 #include <stack>
 #include <string>
 
-
+// Internal implementation of CXMLWriter
 struct CXMLWriter::SImplementation {
-    std::shared_ptr<CDataSink> DDataSink;
-    std::stack<std::string> DElementStack;
+    std::shared_ptr<CDataSink> Sink;
+    std::stack<std::string> Stack;
 
     explicit SImplementation(std::shared_ptr<CDataSink> sink) 
-        : DDataSink(std::move(sink)) {}
+        : Sink(std::move(sink)) {}
 
+    // Writes a string to the output, escaping special XML characters if needed
     bool WriteText(const std::string &str, bool escape) {
         for (char ch : str) {
             if (escape) {
@@ -19,29 +20,30 @@ struct CXMLWriter::SImplementation {
                     case '&':  if (!WriteText("&amp;", false)) return false; break;
                     case '\'': if (!WriteText("&apos;", false)) return false; break;
                     case '"':  if (!WriteText("&quot;", false)) return false; break;
-                    default:   if (!DDataSink->Put(ch)) return false;
+                    default:   if (!Sink->Put(ch)) return false;
                 }
             } else {
-                if (!DDataSink->Put(ch)) return false;
+                if (!Sink->Put(ch)) return false;
             }
         }
         return true;
     }
 
-    
+    // Closes all open XML elements
     bool Flush() {
-        while (!DElementStack.empty()) {
-            if (!WriteText("</" + DElementStack.top() + ">", false)) {
+        while (!Stack.empty()) {
+            if (!WriteText("</" + Stack.top() + ">", false)) {
                 return false;
             }
-            DElementStack.pop();
+            Stack.pop();
         }
         return true;
     }
 
-   
+   // Writes an XML entity (tag, data, or self-closing element)
     bool WriteEntity(const SXMLEntity &entity) {
         switch (entity.DType) {
+            // Opening tag
             case SXMLEntity::EType::StartElement:
                 if (!WriteText("<" + entity.DNameData, false)) return false;
 
@@ -52,20 +54,24 @@ struct CXMLWriter::SImplementation {
                 }
 
                 if (!WriteText(">", false)) return false;
-                DElementStack.push(entity.DNameData);
+                // Store open tag for future closure
+                Stack.push(entity.DNameData);
                 break;
-
+            // Closing tag
             case SXMLEntity::EType::EndElement:
                 if (!WriteText("</" + entity.DNameData + ">", false)) return false;
-                if (!DElementStack.empty()) {
-                    DElementStack.pop();
+                // Remove the corresponding start tag from stack
+                if (!Stack.empty()) {
+                    Stack.pop();
                 }
                 break;
 
+            // Character data 
             case SXMLEntity::EType::CharData:
                 if (!WriteText(entity.DNameData, true)) return false;  
                 break;
 
+            // Self-closing tag
             case SXMLEntity::EType::CompleteElement:
                 if (!WriteText("<" + entity.DNameData, false)) return false;
 
@@ -75,6 +81,7 @@ struct CXMLWriter::SImplementation {
                     if (!WriteText("\"", false)) return false;
                 }
 
+                // Self-closing tag
                 if (!WriteText("/>", false)) return false;
                 break;
         }
@@ -82,16 +89,19 @@ struct CXMLWriter::SImplementation {
     }
 };
 
-
+// Constructor for XML writer, sink specifies the data destination
 CXMLWriter::CXMLWriter(std::shared_ptr<CDataSink> sink)
     : DImplementation(std::make_unique<SImplementation>(std::move(sink))) {}
 
+// Destructor for XML writer
 CXMLWriter::~CXMLWriter() = default;
 
+// Outputs all end elements for those that have been started
 bool CXMLWriter::Flush() {
     return DImplementation->Flush();
 }
 
+// Writes out the entity to the output stream
 bool CXMLWriter::WriteEntity(const SXMLEntity &entity) {
     return DImplementation->WriteEntity(entity);
 }
