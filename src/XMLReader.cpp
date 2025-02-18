@@ -8,19 +8,19 @@ struct CXMLReader::SImplementation {
     std::shared_ptr<CDataSource> DataSource;
     XML_Parser Parser;
     std::queue<SXMLEntity> EntityQueue;
-    bool EndOfData = false;
+    bool EndOfData;
     std::string CharDataBuffer;
 
-    // Unified handler for StartElement and EndElement
+    // Combined Start and End Element Handlers
     static void ElementHandler(void *userData, const char *name, const char **atts, bool isStart) {
         auto *impl = static_cast<SImplementation *>(userData);
         impl->FlushCharData();
-
+        
         SXMLEntity entity;
         entity.DType = isStart ? SXMLEntity::EType::StartElement : SXMLEntity::EType::EndElement;
         entity.DNameData = name;
 
-        if (isStart && atts) { // Parse attributes only for start elements
+        if (isStart && atts) { // Parse attributes for start elements
             for (int i = 0; atts[i] != nullptr; i += 2) {
                 if (atts[i + 1] != nullptr) {
                     entity.DAttributes.emplace_back(atts[i], atts[i + 1]);
@@ -47,7 +47,7 @@ struct CXMLReader::SImplementation {
     }
 
     // Constructor initializes XML parser and handlers
-    SImplementation(std::shared_ptr<CDataSource> src) : DataSource(std::move(src)) {
+    SImplementation(std::shared_ptr<CDataSource> src) : DataSource(std::move(src)), EndOfData(false) {
         Parser = XML_ParserCreate(nullptr);
         XML_SetUserData(Parser, this);
         XML_SetElementHandler(Parser, StartElementHandler, EndElementHandler);
@@ -113,34 +113,4 @@ bool CXMLReader::End() const {
 
 bool CXMLReader::ReadEntity(SXMLEntity &entity, bool skipcdata) {
     return DImplementation->ReadEntity(entity, skipcdata);
-}
-
-// SXMLEntity member functions
-bool SXMLEntity::AttributeExists(const std::string &name) const {
-    for (const auto &attr : DAttributes) {
-        if (attr.first == name) {
-            return true;
-        }
-    }
-    return false;
-}
-
-std::string SXMLEntity::AttributeValue(const std::string &name) const {
-    for (const auto &attr : DAttributes) {
-        if (attr.first == name) {
-            return attr.second;
-        }
-    }
-    return "";
-}
-
-bool SXMLEntity::SetAttribute(const std::string &name, const std::string &value) {
-    for (auto &attr : DAttributes) {
-        if (attr.first == name) {
-            attr.second = value;
-            return true;
-        }
-    }
-    DAttributes.emplace_back(name, value);
-    return true;
 }
