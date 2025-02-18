@@ -30,7 +30,7 @@ struct CDSVWriter::SImplementation {
                 // Iterate over each character in the field
                 for (char ch : row[i]) {
                     if (ch == '"') {
-                        // Escape double quotes by doubling them (e.g., "example" -> ""example"")
+                        // Escape double quotes by doubling
                         if (!Sink->Put('"') || !Sink->Put('"')) return false;
                     } else {
                         // Write the character as is
