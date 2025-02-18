@@ -22,7 +22,7 @@ struct CXMLWriter::SImplementation {
                     case '&':  if (!WriteText("&amp;", false)) return false; break;
                     case '\'': if (!WriteText("&apos;", false)) return false; break;
                     case '"':  if (!WriteText("&quot;", false)) return false; break;
-                    default:   if (!Sink->Put(ch)) return false;
+                    default:   if (!Sink->Put(c)) return false;
                 }
             } else {
                 if (!Sink->Put(c)) return false;
