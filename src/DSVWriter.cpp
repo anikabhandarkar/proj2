@@ -1,3 +1,4 @@
+
 #include "DSVWriter.h"
 #include "DataSink.h"
 
@@ -30,7 +31,7 @@ struct CDSVWriter::SImplementation {
                 // Iterate over each character in the field
                 for (char ch : row[i]) {
                     if (ch == '"') {
-                        // Escape double quotes by doubling
+                        // Escape double quotes by doubling them (e.g., "example" -> ""example"")
                         if (!Sink->Put('"') || !Sink->Put('"')) return false;
                     } else {
                         // Write the character as is
