@@ -5,54 +5,6 @@
 #include <string>
 #include <vector>
 
-// Mock classes for testing
-class MockDataSink : public CDataSink {
-private:
-    std::string Data;
-public:
-    bool Put(char ch) override {
-        Data += ch;
-        return true;
-    }
-    
-    const std::string& GetData() const { return Data; }
-};
-
-class MockDataSource : public CDataSource {
-private:
-    std::string Data;
-    size_t Position = 0;
-public:
-    MockDataSource(const std::string& data) : Data(data) {}
-
-    bool End() const override {
-        return Position >= Data.length();
-    }
-
-    bool Get(char& ch) override {
-        if (End()) return false;
-        ch = Data[Position++];
-        return true;
-    }
-
-    bool Peek(char& ch) override {
-        if (End()) return false;
-        ch = Data[Position];
-        return true;
-    }
-};
-
-class DSVTest : public ::testing::Test {
-protected:
-    std::shared_ptr<MockDataSink> Sink;
-    std::shared_ptr<MockDataSource> Source;
-    
-    void SetUp() override {
-        Sink = std::make_shared<MockDataSink>();
-    }
-};
-
-// Writer Tests
 TEST_F(DSVTest, WriterBasicRow) {
     CDSVWriter writer(Sink, ',');
     std::vector<std::string> row = {"a", "b", "c"};
