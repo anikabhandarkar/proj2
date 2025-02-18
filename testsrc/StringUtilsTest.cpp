@@ -58,13 +58,13 @@ TEST(StringUtilsTest, Replace){
 }
 
 TEST(StringUtilsTest, Split){
-    ASSERT_EQ(StringUtils::Split("anika loves cs"), std::vector<std::string>{"anika", "loves", "cs"});
-    ASSERT_EQ(StringUtils::Split("i,hate,cs", ","), std::vector<std::string>{"i", "hate", "cs"});
+    ASSERT_EQ(StringUtils::Split("anika loves cs"), (std::vector<std::string>{"anika", "loves", "cs"}));
+    ASSERT_EQ(StringUtils::Split("i,hate,cs", ","), (std::vector<std::string>{"i", "hate", "cs"}));
 }
 
 TEST(StringUtilsTest, Join){
-    ASSERT_EQ(StringUtils::Join(std::vector<std::string>{"anika", "loves", "cs"}, " "), "anika loves cs");
-    ASSERT_EQ(StringUtils::Join(std::vector<std::string>{"i", "hate", "cs"}, ","), "i,hate,cs");
+    ASSERT_EQ(StringUtils::Join(" ", std::vector<std::string>{"anika", "loves", "cs"}), "anika loves cs");
+    ASSERT_EQ(StringUtils::Join(",", std::vector<std::string>{"i", "hate", "cs"}), "i,hate,cs");
 }
 
 TEST(StringUtilsTest, ExpandTabs){
@@ -76,4 +76,3 @@ TEST(StringUtilsTest, EditDistance){
     ASSERT_EQ(StringUtils::EditDistance("anika", "anika"), 0);
     ASSERT_EQ(StringUtils::EditDistance("anika", "anik"), 1);
 }
-
