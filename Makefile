@@ -6,9 +6,11 @@ SRC_DIR = src
 TEST_DIR = testsrc
 OBJ_DIR = obj
 BIN_DIR = bin
+INCLUDE_DIR = include
 
 SRC_FILES = $(wildcard $(SRC_DIR)/*.cpp)
 TEST_FILES = $(wildcard $(TEST_DIR)/*.cpp)
+HEADER_FILES = $(wildcard $(INCLUDE_DIR)/*.h)
 
 OBJ_FILES = $(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(SRC_FILES))
 TEST_OBJ_FILES = $(patsubst $(TEST_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(TEST_FILES))
