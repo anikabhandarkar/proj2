@@ -26,29 +26,28 @@ struct CDSVWriter::SImplementation {
             
             if (quote) {
                 // Start quoted field
-                Sink->Put('"'); 
+                if (!Sink->Put('"')) return false; 
                 // Iterate over each character in the field
                 for (char ch : row[i]) {
                     if (ch == '"') {
                         // Escape double quotes by doubling them (e.g., "example" -> ""example"")
-                        Sink->Put('"');
-                        Sink->Put('"');
+                        if (!Sink->Put('"') || !Sink->Put('"')) return false;
                     } else {
                         // Write the character as is
-                        Sink->Put(ch);
+                        if (!Sink->Put(ch)) return false;
                     }
                 }
                 // End quoted field
-                Sink->Put('"'); 
+                if (!Sink->Put('"')) return false; 
             // If no quoting is needed, write the field character by character
             } else {
                 for (char ch : row[i]) {
-                    Sink->Put(ch);
+                    if (!Sink->Put(ch)) return false;
                 }
             }
             // Add delimiter between fields, but not after the last field
             if (i < row.size() - 1) {
-                Sink->Put(Delimiter); 
+                if (!Sink->Put(Delimiter)) return false; 
             }
         }
         // End the row with a newline character
