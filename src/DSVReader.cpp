@@ -2,91 +2,90 @@
 #include <sstream>
 #include <iostream>
 
+//Structure for implementation for CDSVReader
+//handles the actual data parsing logic
 struct CDSVReader::SImplementation {
-    std::shared_ptr<CDataSource> DataSource;
+    std::shared_ptr<CDataSource> Source;
     char Delimiter;
     
+    //Constructor, intialize data source and delimiter
     SImplementation(std::shared_ptr<CDataSource> src, char delimiter)
-        : DataSource(std::move(src)), Delimiter(delimiter) {}
+        : Source(std::move(src)), Delimiter(delimiter) {}
     
+    // Reads a row of data from the DSV file and stores it in a vector
+    // Returns true if a row is read false if end of file is reached
     bool ReadRow(std::vector<std::string> &row) {
+        // Reset the row before reading new data
         row.clear();
-        
-        std::string cell;
+        std::string right;
         char ch;
-        bool inQuotes = false;
-        bool hasData = false;
+        bool quotes = false;
+        bool data = false;
         
-        while (!DataSource->End()) {
-            if (!DataSource->Get(ch)) return false;
-            hasData = true;
+        while (!Source->End()) {
+            // If unable to read a character, return false
+            if (!Source->Get(ch)) return false;
+            data = true;
             
+            //for double quotes
             if (ch == '"') {
-                // Check if the next character is another quote (escaped quote)
-                if (!DataSource->End()) {
-                    char nextChar;
-                    if (DataSource->Peek(nextChar) && nextChar == '"') {
-                        // Consume the peeked character
-                        DataSource->Get(nextChar);
-                        // Escaped quote, add it
-                        cell += '"';
-                    } else if (inQuotes) {
-                        // End of quoted section
-                        inQuotes = false;
+                char next;
+                // Check the next character
+                if (!Source->End() && Source->Peek(next)) {
+                    if (next == '"') {
+                        Source->Get(next);
+                        // Add a single quote to the field
+                        right += '"';
                     } else {
-                        // Starting a quoted section
-                        inQuotes = true;
+                        quotes = !quotes;
                     }
-                } else if (inQuotes) {
-                    // End of quoted section at end of file
-                    inQuotes = false;
                 } else {
-                    // Starting a quoted section at end of file (rare case)
-                    inQuotes = true;
+                    quotes = !quotes;
                 }
-            } else if (ch == Delimiter && !inQuotes) {
-                // Outside quotes, delimiter means end of cell
-                row.push_back(cell);
-                cell.clear();
-            } else if ((ch == '\n' || ch == '\r') && !inQuotes) {
-                // Newline outside quotes means end of row
-                if (!cell.empty() || !row.empty()) {
-                    row.push_back(cell);
+            } else if (ch == Delimiter && !quotes) {
+                //store string and clear it 
+                row.push_back(std::move(right));
+                right.clear();
+            // End of row detected
+            } else if ((ch == '\n' || ch == '\r') && !quotes) {
+                if (!right.empty() || !row.empty()) {
+                    // Store last string
+                    row.push_back(std::move(right));
                 }
                 
-                // Skip any following \r\n combination
-                if (ch == '\r' && !DataSource->End()) {
-                    char nextChar;
-                    if (DataSource->Peek(nextChar) && nextChar == '\n') {
-                        DataSource->Get(nextChar); // Consume the '\n'
+                if (ch == '\r' && !Source->End()) {
+                    char next;
+                    if (Source->Peek(next) && next == '\n') {
+                        Source->Get(next);
                     }
                 }
-                
+                //read a row
                 return true;
             } else {
-                // Regular character, add to cell
-                cell += ch;
+                //append char to current string
+                right += ch;
             }
         }
-        
-        // Add last cell if there was any data
-        if (!cell.empty() || hasData) {
-            row.push_back(cell);
+        //store last string if data was read
+        if (!right.empty() || !row.empty()) {
+            row.push_back(std::move(right));
         }
-        
-        return hasData;
+        // Return whether any data was read
+        return data;
     }
 };
-
+// Constructor for DSV reader, src specifies the data source and delimiter
+// specifies the delimiting character
 CDSVReader::CDSVReader(std::shared_ptr<CDataSource> src, char delimiter)
     : DImplementation(std::make_unique<SImplementation>(src, delimiter)) {}
-
+// Destructor for DSV reader
 CDSVReader::~CDSVReader() = default;
-
+// Returns true if all rows have been read from the DSV
 bool CDSVReader::End() const {
-    return DImplementation->DataSource->End();
+    return DImplementation->Source->End();
 }
-
+// Returns true if the row is successfully read, one string will be put in
+// the row per column
 bool CDSVReader::ReadRow(std::vector<std::string> &row) {
     return DImplementation->ReadRow(row);
 }
