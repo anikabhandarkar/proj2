@@ -25,7 +25,7 @@ struct CXMLWriter::SImplementation {
                     default:   if (!Sink->Put(ch)) return false;
                 }
             } else {
-                if (!Sink->Put(ch)) return false;
+                if (!Sink->Put(c)) return false;
             }
         }
         return true;
