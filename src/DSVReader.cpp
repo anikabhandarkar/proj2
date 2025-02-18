@@ -11,16 +11,15 @@ struct CXMLReader::SImplementation {
     bool EndOfData;
     std::string CharDataBuffer;
 
-    // Combined Start and End Element Handlers
-    static void ElementHandler(void *userData, const char *name, const char **atts, bool isStart) {
+    static void StartElementHandler(void *userData, const char *name, const char **atts) {
         auto *impl = static_cast<SImplementation *>(userData);
         impl->FlushCharData();
-        
         SXMLEntity entity;
-        entity.DType = isStart ? SXMLEntity::EType::StartElement : SXMLEntity::EType::EndElement;
+        entity.DType = SXMLEntity::EType::StartElement;
         entity.DNameData = name;
 
-        if (isStart && atts) { // Parse attributes for start elements
+        // Parse attributes
+        if (atts != nullptr) {
             for (int i = 0; atts[i] != nullptr; i += 2) {
                 if (atts[i + 1] != nullptr) {
                     entity.DAttributes.emplace_back(atts[i], atts[i + 1]);
@@ -31,22 +30,22 @@ struct CXMLReader::SImplementation {
         impl->EntityQueue.push(entity);
     }
 
-    static void StartElementHandler(void *userData, const char *name, const char **atts) {
-        ElementHandler(userData, name, atts, true);
-    }
-
     static void EndElementHandler(void *userData, const char *name) {
-        ElementHandler(userData, name, nullptr, false);
+        auto *impl = static_cast<SImplementation *>(userData);
+        impl->FlushCharData();
+        SXMLEntity entity;
+        entity.DType = SXMLEntity::EType::EndElement;
+        entity.DNameData = name;
+        impl->EntityQueue.push(entity);
     }
 
-    // Handles character data
     static void CharDataHandler(void *userData, const char *s, int len) {
-        if (s && len > 0) {
-            static_cast<SImplementation *>(userData)->CharDataBuffer.append(s, len);
+        auto *impl = static_cast<SImplementation *>(userData);
+        if (s != nullptr && len > 0) {
+            impl->CharDataBuffer.append(s, len);
         }
     }
 
-    // Constructor initializes XML parser and handlers
     SImplementation(std::shared_ptr<CDataSource> src) : DataSource(std::move(src)), EndOfData(false) {
         Parser = XML_ParserCreate(nullptr);
         XML_SetUserData(Parser, this);
@@ -58,18 +57,19 @@ struct CXMLReader::SImplementation {
         XML_ParserFree(Parser);
     }
 
-    // Flushes buffered character data to the queue
     void FlushCharData() {
         if (!CharDataBuffer.empty()) {
-            EntityQueue.push({SXMLEntity::EType::CharData, CharDataBuffer, {}});
+            SXMLEntity entity;
+            entity.DType = SXMLEntity::EType::CharData;
+            entity.DNameData = CharDataBuffer;
+            EntityQueue.push(entity);
             CharDataBuffer.clear();
         }
     }
 
-    // Reads and parses data from the source
     bool ReadEntity(SXMLEntity &entity, bool skipcdata) {
         while (EntityQueue.empty() && !EndOfData) {
-            std::vector<char> buffer(4096);
+            std::vector<char> buffer(4096); // Use vector instead of char array
             size_t length = 0;
             while (length < buffer.size() && !DataSource->End()) {
                 char ch;
@@ -80,28 +80,35 @@ struct CXMLReader::SImplementation {
                 }
             }
 
-            if (length == 0) { // No more data to read
+            if (length == 0) {
+                // No more data to read
                 EndOfData = true;
-                XML_Parse(Parser, nullptr, 0, 1);
+                XML_Parse(Parser, nullptr, 0, 1); // Signal end of parsing
                 break;
             }
 
             if (XML_Parse(Parser, buffer.data(), length, 0) == XML_STATUS_ERROR) {
-                return false; // Parsing error
+                // Parsing error
+                return false;
             }
         }
 
         if (!EntityQueue.empty()) {
             entity = EntityQueue.front();
             EntityQueue.pop();
-            return !(skipcdata && entity.DType == SXMLEntity::EType::CharData) || ReadEntity(entity, skipcdata);
+
+            // Skip CDATA if requested
+            if (skipcdata && entity.DType == SXMLEntity::EType::CharData) {
+                return ReadEntity(entity, skipcdata); // Recursively skip CDATA
+            }
+
+            return true;
         }
 
-        return false; // No more entities
+        return false; // No more entities to read
     }
 };
 
-// Public interface implementation
 CXMLReader::CXMLReader(std::shared_ptr<CDataSource> src)
     : DImplementation(std::make_unique<SImplementation>(std::move(src))) {}
 
@@ -114,3 +121,7 @@ bool CXMLReader::End() const {
 bool CXMLReader::ReadEntity(SXMLEntity &entity, bool skipcdata) {
     return DImplementation->ReadEntity(entity, skipcdata);
 }
+
+
+
+
