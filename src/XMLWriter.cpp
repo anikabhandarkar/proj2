@@ -16,7 +16,7 @@ struct CXMLWriter::SImplementation {
         for (char c : str) {
             if (escape) {
                 // escaping XML special characters to prevent malformation
-                switch (ch) {
+                switch (c) {
                     case '<':  if (!WriteText("&lt;", false)) return false; break;
                     case '>':  if (!WriteText("&gt;", false)) return false; break;
                     case '&':  if (!WriteText("&amp;", false)) return false; break;
