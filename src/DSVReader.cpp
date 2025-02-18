@@ -2,10 +2,10 @@
 #include <sstream>
 #include <iostream>
 
-// this structure handles the nitty-gritty of reading delimiter-separated values from a data source
+// this structure handles reading delimiter-separated values from a data source
 struct CDSVReader::SImplementation {
     std::shared_ptr<CDataSource> Source;  // holds our data source
-    char Delimiter;                       // the character that splits the data into columns
+    char Delimiter; // the character that splits the data into columns
     
     // constructor sets up the data source and the delimiter
     SImplementation(std::shared_ptr<CDataSource> src, char delimiter)
@@ -15,15 +15,15 @@ struct CDSVReader::SImplementation {
     bool ReadRow(std::vector<std::string> &row) {
         row.clear(); // start with a fresh row
         std::string right; // collects the characters between delimiters
-        char ch; // the current character being read
+        char c; // the current character being read
         bool quotes = false; // inside quoted text
         bool data = false; // read any data
         
         while (!Source->End()) {
-            if (!Source->Get(ch)) return false; // if we can't read anymore, we are done
+            if (!Source->Get(c)) return false; // if we can't read anymore, we are done
             data = true;
             
-            if (ch == '"') { // handle quotes
+            if (c == '"') { // handle quotes
                 char next;
                 if (!Source->End() && Source->Peek(next)) {
                     if (next == '"') { // two quotes in a row means add one quote to the data
@@ -35,15 +35,15 @@ struct CDSVReader::SImplementation {
                 } else {
                     quotes = !quotes; // flip our quote flag
                 }
-            } else if (ch == Delimiter && !quotes) {
+            } else if (c == Delimiter && !quotes) {
                 row.push_back(std::move(right)); // end of a column
                 right.clear();
-            } else if ((ch == '\n' || ch == '\r') && !quotes) {
+            } else if ((c == '\n' || c == '\r') && !quotes) {
                 if (!right.empty() || !row.empty()) {
                     row.push_back(std::move(right)); // end of a row
                 }
                 
-                if (ch == '\r' && !Source->End()) {  // handle windows line endings
+                if (c == '\r' && !Source->End()) {  // handle windows line endings
                     char next;
                     if (Source->Peek(next) && next == '\n') {
                         Source->Get(next);
@@ -51,7 +51,7 @@ struct CDSVReader::SImplementation {
                 }
                 return true; // we read a full row
             } else {
-                right += ch; // just another character in the current column
+                right += c; // just another character in the current column
             }
         }
         
