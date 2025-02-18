@@ -28,8 +28,8 @@ struct CDSVWriter::SImplementation {
                 // start quoted field
                 if (!Sink->Put('"')) return false; 
                 // iterate over each character in the field
-                for (char ch : row[i]) {
-                    if (ch == '"') {
+                for (char c : row[i]) {
+                    if (c == '"') {
                         // escape double quotes by doubling them
                         if (!Sink->Put('"') || !Sink->Put('"')) return false;
                     } else {
@@ -41,7 +41,7 @@ struct CDSVWriter::SImplementation {
                 if (!Sink->Put('"')) return false; 
             // if no quoting is needed, write the field character by character
             } else {
-                for (char ch : row[i]) {
+                for (char c : row[i]) {
                     if (!Sink->Put(ch)) return false;
                 }
             }
