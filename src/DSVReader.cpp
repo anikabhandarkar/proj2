@@ -1,127 +1,91 @@
-#include "XMLReader.h"
-#include <expat.h>
-#include <queue>
-#include <memory>
-#include <vector>
+#include "DSVReader.h"
+#include <sstream>
+#include <iostream>
 
-struct CXMLReader::SImplementation {
-    std::shared_ptr<CDataSource> DataSource;
-    XML_Parser Parser;
-    std::queue<SXMLEntity> EntityQueue;
-    bool EndOfData;
-    std::string CharDataBuffer;
-
-    static void StartElementHandler(void *userData, const char *name, const char **atts) {
-        auto *impl = static_cast<SImplementation *>(userData);
-        impl->FlushCharData();
-        SXMLEntity entity;
-        entity.DType = SXMLEntity::EType::StartElement;
-        entity.DNameData = name;
-
-        // Parse attributes
-        if (atts != nullptr) {
-            for (int i = 0; atts[i] != nullptr; i += 2) {
-                if (atts[i + 1] != nullptr) {
-                    entity.DAttributes.emplace_back(atts[i], atts[i + 1]);
-                }
-            }
-        }
-
-        impl->EntityQueue.push(entity);
-    }
-
-    static void EndElementHandler(void *userData, const char *name) {
-        auto *impl = static_cast<SImplementation *>(userData);
-        impl->FlushCharData();
-        SXMLEntity entity;
-        entity.DType = SXMLEntity::EType::EndElement;
-        entity.DNameData = name;
-        impl->EntityQueue.push(entity);
-    }
-
-    static void CharDataHandler(void *userData, const char *s, int len) {
-        auto *impl = static_cast<SImplementation *>(userData);
-        if (s != nullptr && len > 0) {
-            impl->CharDataBuffer.append(s, len);
-        }
-    }
-
-    SImplementation(std::shared_ptr<CDataSource> src) : DataSource(std::move(src)), EndOfData(false) {
-        Parser = XML_ParserCreate(nullptr);
-        XML_SetUserData(Parser, this);
-        XML_SetElementHandler(Parser, StartElementHandler, EndElementHandler);
-        XML_SetCharacterDataHandler(Parser, CharDataHandler);
-    }
-
-    ~SImplementation() {
-        XML_ParserFree(Parser);
-    }
-
-    void FlushCharData() {
-        if (!CharDataBuffer.empty()) {
-            SXMLEntity entity;
-            entity.DType = SXMLEntity::EType::CharData;
-            entity.DNameData = CharDataBuffer;
-            EntityQueue.push(entity);
-            CharDataBuffer.clear();
-        }
-    }
-
-    bool ReadEntity(SXMLEntity &entity, bool skipcdata) {
-        while (EntityQueue.empty() && !EndOfData) {
-            std::vector<char> buffer(4096); // Use vector instead of char array
-            size_t length = 0;
-            while (length < buffer.size() && !DataSource->End()) {
-                char ch;
-                if (DataSource->Get(ch)) {
-                    buffer[length++] = ch;
+//Structure for implementation for CDSVReader
+//handles the actual data parsing logic
+struct CDSVReader::SImplementation {
+    std::shared_ptr<CDataSource> Source;
+    char Delimiter;
+    
+    //Constructor, intialize data source and delimiter
+    SImplementation(std::shared_ptr<CDataSource> src, char delimiter)
+        : Source(std::move(src)), Delimiter(delimiter) {}
+    
+    // Reads a row of data from the DSV file and stores it in a vector
+    // Returns true if a row is read false if end of file is reached
+    bool ReadRow(std::vector<std::string> &row) {
+        // Reset the row before reading new data
+        row.clear();
+        std::string right;
+        char ch;
+        bool quotes = false;
+        bool data = false;
+        
+        while (!Source->End()) {
+            // If unable to read a character, return false
+            if (!Source->Get(ch)) return false;
+            data = true;
+            
+            //for double quotes
+            if (ch == '"') {
+                char next;
+                // Check the next character
+                if (!Source->End() && Source->Peek(next)) {
+                    if (next == '"') {
+                        Source->Get(next);
+                        // Add a single quote to the field
+                        right += '"';
+                    } else {
+                        quotes = !quotes;
+                    }
                 } else {
-                    break;
+                    quotes = !quotes;
                 }
-            }
-
-            if (length == 0) {
-                // No more data to read
-                EndOfData = true;
-                XML_Parse(Parser, nullptr, 0, 1); // Signal end of parsing
-                break;
-            }
-
-            if (XML_Parse(Parser, buffer.data(), length, 0) == XML_STATUS_ERROR) {
-                // Parsing error
-                return false;
+            } else if (ch == Delimiter && !quotes) {
+                //store string and clear it 
+                row.push_back(std::move(right));
+                right.clear();
+            // End of row detected
+            } else if ((ch == '\n' || ch == '\r') && !quotes) {
+                if (!right.empty() || !row.empty()) {
+                    // Store last string
+                    row.push_back(std::move(right));
+                }
+                
+                if (ch == '\r' && !Source->End()) {
+                    char next;
+                    if (Source->Peek(next) && next == '\n') {
+                        Source->Get(next);
+                    }
+                }
+                //read a row
+                return true;
+            } else {
+                //append char to current string
+                right += ch;
             }
         }
-
-        if (!EntityQueue.empty()) {
-            entity = EntityQueue.front();
-            EntityQueue.pop();
-
-            // Skip CDATA if requested
-            if (skipcdata && entity.DType == SXMLEntity::EType::CharData) {
-                return ReadEntity(entity, skipcdata); // Recursively skip CDATA
-            }
-
-            return true;
+        //store last string if data was read
+        if (!right.empty() || !row.empty()) {
+            row.push_back(std::move(right));
         }
-
-        return false; // No more entities to read
+        // Return whether any data was read
+        return data;
     }
 };
-
-CXMLReader::CXMLReader(std::shared_ptr<CDataSource> src)
-    : DImplementation(std::make_unique<SImplementation>(std::move(src))) {}
-
-CXMLReader::~CXMLReader() = default;
-
-bool CXMLReader::End() const {
-    return DImplementation->EndOfData && DImplementation->EntityQueue.empty();
+// Constructor for DSV reader, src specifies the data source and delimiter
+// specifies the delimiting character
+CDSVReader::CDSVReader(std::shared_ptr<CDataSource> src, char delimiter)
+    : DImplementation(std::make_unique<SImplementation>(src, delimiter)) {}
+// Destructor for DSV reader
+CDSVReader::~CDSVReader() = default;
+// Returns true if all rows have been read from the DSV
+bool CDSVReader::End() const {
+    return DImplementation->Source->End();
 }
-
-bool CXMLReader::ReadEntity(SXMLEntity &entity, bool skipcdata) {
-    return DImplementation->ReadEntity(entity, skipcdata);
+// Returns true if the row is successfully read, one string will be put in
+// the row per column
+bool CDSVReader::ReadRow(std::vector<std::string> &row) {
+    return DImplementation->ReadRow(row);
 }
-
-
-
-
