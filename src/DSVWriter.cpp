@@ -34,7 +34,7 @@ struct CDSVWriter::SImplementation {
                         if (!Sink->Put('"') || !Sink->Put('"')) return false;
                     } else {
                         // write the character as is
-                        if (!Sink->Put(ch)) return false;
+                        if (!Sink->Put(c)) return false;
                     }
                 }
                 // end quoted field
@@ -42,7 +42,7 @@ struct CDSVWriter::SImplementation {
             // if no quoting is needed, write the field character by character
             } else {
                 for (char c : row[i]) {
-                    if (!Sink->Put(ch)) return false;
+                    if (!Sink->Put(c)) return false;
                 }
             }
             // add delimiter between fields, but not after the last field
