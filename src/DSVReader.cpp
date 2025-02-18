@@ -30,10 +30,10 @@ struct CDSVReader::SImplementation {
                         Source->Get(next);
                         right += '"';
                     } else {
-                        quotes = !quotes; // flip our quote flag
+                        quotes = !quotes; // flip  quote boool
                     }
                 } else {
-                    quotes = !quotes; // flip our quote flag
+                    quotes = !quotes; // flip  quote bool
                 }
             } else if (c == Delimiter && !quotes) {
                 row.push_back(std::move(right)); // end of a column
