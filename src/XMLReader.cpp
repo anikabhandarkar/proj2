@@ -1,3 +1,4 @@
+
 #include "XMLReader.h"
 #include <expat.h>
 #include <queue>
@@ -8,27 +9,22 @@ struct CXMLReader::SImplementation {
     std::shared_ptr<CDataSource> DataSource;
     XML_Parser Parser;
     std::queue<SXMLEntity> EntityQueue;
-    bool EndOfData;
+    bool EndOfData = false;
     std::string CharDataBuffer;
 
-    // Combined Start and End Element Handlers
+    // Unified Start & End Element Handler
     static void ElementHandler(void *userData, const char *name, const char **atts, bool isStart) {
         auto *impl = static_cast<SImplementation *>(userData);
         impl->FlushCharData();
-        
-        SXMLEntity entity;
-        entity.DType = isStart ? SXMLEntity::EType::StartElement : SXMLEntity::EType::EndElement;
-        entity.DNameData = name;
 
-        if (isStart && atts) { // Parse attributes for start elements
-            for (int i = 0; atts[i] != nullptr; i += 2) {
-                if (atts[i + 1] != nullptr) {
-                    entity.DAttributes.emplace_back(atts[i], atts[i + 1]);
-                }
+        SXMLEntity entity{isStart ? SXMLEntity::EType::StartElement : SXMLEntity::EType::EndElement, name, {}};
+
+        if (isStart && atts) { // Store attributes if available
+            for (int i = 0; atts[i] && atts[i + 1]; i += 2) {
+                entity.DAttributes.emplace_back(atts[i], atts[i + 1]);
             }
         }
-
-        impl->EntityQueue.push(entity);
+        impl->EntityQueue.push(std::move(entity));
     }
 
     static void StartElementHandler(void *userData, const char *name, const char **atts) {
@@ -39,16 +35,15 @@ struct CXMLReader::SImplementation {
         ElementHandler(userData, name, nullptr, false);
     }
 
-    // Handles character data
     static void CharDataHandler(void *userData, const char *s, int len) {
         if (s && len > 0) {
             static_cast<SImplementation *>(userData)->CharDataBuffer.append(s, len);
         }
     }
 
-    // Constructor initializes XML parser and handlers
-    SImplementation(std::shared_ptr<CDataSource> src) : DataSource(std::move(src)), EndOfData(false) {
-        Parser = XML_ParserCreate(nullptr);
+    // Constructor initializes parser and handlers
+    explicit SImplementation(std::shared_ptr<CDataSource> src)
+        : DataSource(std::move(src)), Parser(XML_ParserCreate(nullptr)) {
         XML_SetUserData(Parser, this);
         XML_SetElementHandler(Parser, StartElementHandler, EndElementHandler);
         XML_SetCharacterDataHandler(Parser, CharDataHandler);
@@ -58,19 +53,18 @@ struct CXMLReader::SImplementation {
         XML_ParserFree(Parser);
     }
 
-    // Flushes buffered character data to the queue
     void FlushCharData() {
         if (!CharDataBuffer.empty()) {
-            EntityQueue.push({SXMLEntity::EType::CharData, CharDataBuffer, {}});
+            EntityQueue.push({SXMLEntity::EType::CharData, std::move(CharDataBuffer), {}});
             CharDataBuffer.clear();
         }
     }
 
-    // Reads and parses data from the source
     bool ReadEntity(SXMLEntity &entity, bool skipcdata) {
         while (EntityQueue.empty() && !EndOfData) {
             std::vector<char> buffer(4096);
             size_t length = 0;
+
             while (length < buffer.size() && !DataSource->End()) {
                 char ch;
                 if (DataSource->Get(ch)) {
@@ -92,12 +86,11 @@ struct CXMLReader::SImplementation {
         }
 
         if (!EntityQueue.empty()) {
-            entity = EntityQueue.front();
+            entity = std::move(EntityQueue.front());
             EntityQueue.pop();
             return !(skipcdata && entity.DType == SXMLEntity::EType::CharData) || ReadEntity(entity, skipcdata);
         }
-
-        return false; // No more entities
+        return false;
     }
 };
 
