@@ -13,7 +13,7 @@ struct CXMLWriter::SImplementation {
 
     // writes a string to the output possibly escaping XML special characters
     bool WriteText(const std::string &str, bool escape) {
-        for (char ch : str) {
+        for (char c : str) {
             if (escape) {
                 // escaping XML special characters to prevent malformation
                 switch (ch) {
